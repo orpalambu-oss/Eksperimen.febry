@@ -1,0 +1,222 @@
+<!doctype html>
+
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Game Kalkulator - Simulasi Izin (Demo Etis)</title>
+  <style>
+    body { font-family: system-ui, Arial; display:flex; gap:20px; align-items:flex-start; padding:24px; background:#f6f8fa; }
+    .card { background:white; border-radius:10px; box-shadow:0 6px 18px rgba(0,0,0,.08); padding:18px; width:360px; }
+    h1{margin:0 0 12px 0;font-size:20px}
+    .display{ height:60px; background:#222;color:#fff;border-radius:8px; display:flex;align-items:center;justify-content:flex-end;padding:12px;font-size:24px;}
+    .grid{ display:grid; grid-template-columns: repeat(4,1fr); gap:8px; margin-top:12px;}
+    button{ padding:14px;border-radius:8px;border:0;background:#eee;font-size:18px; cursor:pointer;}
+    button.op{ background:#ffd28a }
+    .score{ margin-top:12px;}
+    .modal-backdrop{ position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex; align-items:center; justify-content:center; z-index:50; }
+    .modal { background:white; padding:18px; border-radius:10px; width:480px; box-shadow:0 12px 30px rgba(0,0,0,.25);}
+    .muted{ color:#666; font-size:13px; }
+    .tiny{ font-size:12px; color:#555}
+  </style>
+</head>
+<body>
+  <div class="card" id="gameCard">
+    <h1>Game Kalkulator — Latih Hitungan Cepat</h1>
+    <div class="display" id="display">0</div>
+    <div style="display:flex;gap:8px;margin-top:12px;">
+      <button id="newQ">Soal Baru</button>
+      <button id="submitAns">Kirim Jawaban</button>
+      <div style="flex:1"></div>
+      <div class="tiny">Score: <span id="score">0</span></div>
+    </div><div class="card" style="margin-top:12px; padding:10px;">
+  <div class="muted">Soal aktif:</div>
+  <div id="question" style="font-size:18px; margin-top:6px">-</div>
+</div>
+
+<div class="grid" style="margin-top:12px;">
+  <button class="num">7</button><button class="num">8</button><button class="num">9</button><button class="op">+</button>
+  <button class="num">4</button><button class="num">5</button><button class="num">6</button><button class="op">-</button>
+  <button class="num">1</button><button class="num">2</button><button class="num">3</button><button class="op">*</button>
+  <button id="clear">C</button><button class="num">0</button><button id="dot">.</button><button class="op">/</button>
+</div>
+
+<div class="score">
+  <div class="muted">Riwayat (lokal):</div>
+  <div id="history" class="tiny" style="margin-top:8px; max-height:120px; overflow:auto;"></div>
+</div>
+
+  </div>  <!-- Modal informed consent + simulasi permission -->  <div id="modal" class="modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true">
+      <h2>Informed Consent — Percobaan Simulasi</h2>
+      <p class="muted">
+        Kamu akan memainkan game kalkulator singkat. Peneliti ingin mengetahui apakah pemain membaca
+        teks persetujuan/izin. Semua data tersimpan <strong>hanya</strong> di browser (localStorage) dan tidak dibagikan.
+        Partisipasi sukarela — kamu boleh keluar kapan saja.
+      </p>  <h3 style="margin-top:12px">Simulasi Izin (Bukan Izin Sistem)</h3>
+  <p class="muted">
+    Berikut adalah <strong>simulasi</strong> dialog izin. Ini TIDAK akan meminta akses ke kamera,
+    lokasi, atau file di perangkatmu. Ini hanya contoh teks untuk eksperimen perilaku.
+  </p>
+
+  <div style="background:#f2f4f6;padding:10px;border-radius:8px;margin-top:8px;">
+    <strong>Permission: Akses Data Penggunaan</strong>
+    <div class="tiny" style="margin-top:6px">Aplikasi meminta izin untuk mengumpulkan data interaksi (waktu klik, jawaban). Data tersimpan lokal dan digunakan untuk keperluan penelitian UX.</div>
+  </div>
+
+  <!-- Simulasi izin berlebihan -->
+  <div style="background:#f9f9f9;padding:10px;border-radius:8px;margin-top:8px;">
+    <strong>Simulasi Izin Tambahan (Tidak Diperlukan)</strong>
+    <div class="tiny" style="margin-top:6px">Pilih fitur yang akan diizinkan. Semua ini <strong>tidak berpengaruh</strong> ke aplikasi.</div>
+    <label><input type="checkbox" id="permCamera"> Akses Kamera</label><br>
+    <label><input type="checkbox" id="permContacts"> Akses Kontak</label><br>
+    <label><input type="checkbox" id="permLocation"> Akses Lokasi</label>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:12px;align-items:center;">
+    <label style="flex:1">
+      <input type="checkbox" id="consentCheck" />
+      Saya sudah baca dan setuju ikut percobaan ini.
+    </label>
+    <button id="startBtn" disabled>Mulai Game</button>
+  </div>
+
+  <p class="tiny" style="margin-top:10px;color:#bb0000;">
+    Catatan etika: jika kamu berencana menyebarkan studi ini ke partisipan nyata, pastikan izin dari lembaga etika (jika perlu)
+    dan jangan menipu peserta tentang risiko yang nyata.
+  </p>
+</div>
+
+  </div><script>
+  // --- LOGIKA GAME ---
+  const display = document.getElementById('display');
+  const questionEl = document.getElementById('question');
+  const historyEl = document.getElementById('history');
+  const scoreEl = document.getElementById('score');
+
+  let inputVal = '';
+  let currentAnswer = null;
+  let score = Number(localStorage.getItem('g_score')||0);
+  scoreEl.textContent = score;
+
+  function randInt(a,b){ return Math.floor(Math.random()*(b-a+1))+a; }
+  function newQuestion(){
+    const a = randInt(1,12);
+    const b = randInt(1,12);
+    const ops = ['+','-','*','/'];
+    const op = ops[randInt(0,ops.length-1)];
+    let qText = `${a} ${op} ${b}`;
+    if(op === '/') {
+      const prod = a*b;
+      qText = `${prod} / ${b}`;
+      currentAnswer = (prod / b);
+    } else {
+      currentAnswer = eval(qText);
+    }
+    questionEl.textContent = qText;
+    inputVal = '';
+    display.textContent = '0';
+  }
+
+  document.querySelectorAll('.num').forEach(b=>{
+    b.addEventListener('click', ()=> {
+      inputVal += b.textContent;
+      display.textContent = inputVal;
+    });
+  });
+  document.querySelectorAll('.op').forEach(b=>{
+    b.addEventListener('click', ()=> {
+      inputVal += ' ' + b.textContent + ' ';
+      display.textContent = inputVal;
+    });
+  });
+  document.getElementById('clear').addEventListener('click', ()=>{
+    inputVal=''; display.textContent='0';
+  });
+  document.getElementById('dot').addEventListener('click', ()=>{
+    if(!inputVal.includes('.')) { inputVal += '.'; display.textContent = inputVal; }
+  });
+
+  document.getElementById('newQ').addEventListener('click', newQuestion);
+
+  function appendHistory(text){
+    const ts = new Date().toLocaleTimeString();
+    const row = document.createElement('div');
+    row.textContent = `[${ts}] ${text}`;
+    historyEl.prepend(row);
+    const hist = JSON.parse(localStorage.getItem('g_hist')||'[]');
+    hist.unshift(`[${ts}] ${text}`);
+    localStorage.setItem('g_hist', JSON.stringify(hist.slice(0,50)));
+  }
+
+  // submit jawaban
+  document.getElementById('submitAns').addEventListener('click', ()=>{
+    if(currentAnswer === null) { alert('Tekan "Soal Baru" dulu.'); return; }
+    let guess;
+    try {
+      guess = eval(inputVal);
+    } catch(e) {
+      alert('Format jawaban salah. Gunakan angka dan operator + - * /.');
+      return;
+    }
+    const correct = Math.abs(guess - currentAnswer) < 1e-6;
+    if(correct){ 
+      score += 1; 
+      localStorage.setItem('g_score', score); 
+      scoreEl.textContent = score; 
+      appendHistory(`Benar (${guess}) soal: ${questionEl.textContent}`); 
+    } else { 
+      appendHistory(`Salah (${guess}) seharusnya ${currentAnswer} soal: ${questionEl.textContent}`); 
+    }
+    const events = JSON.parse(localStorage.getItem('g_events')||'[]');
+    events.push({ts: Date.now(), question: questionEl.textContent, guess, correct});
+    localStorage.setItem('g_events', JSON.stringify(events.slice(-200)));
+    newQuestion();
+  });
+
+  // restore history
+  (function restore(){
+    const hist = JSON.parse(localStorage.getItem('g_hist')||'[]');
+    hist.forEach(h=>{
+      const row = document.createElement('div'); row.textContent = h; historyEl.prepend(row);
+    });
+  })();
+
+  // --- MODAL INFORMED CONSENT & SIMULASI ---
+  const modal = document.getElementById('modal');
+  const consentCheck = document.getElementById('consentCheck');
+  const startBtn = document.getElementById('startBtn');
+
+  consentCheck.addEventListener('change', ()=> { startBtn.disabled = !consentCheck.checked; });
+
+  startBtn.addEventListener('click', ()=>{
+    const openedAt = Number(localStorage.getItem('g_modal_opened_at') || Date.now());
+    const readDuration = Date.now() - openedAt;
+
+    const consentLogs = JSON.parse(localStorage.getItem('consent_logs')||'[]');
+    consentLogs.push({
+      ts: Date.now(),
+      readMs: readDuration,
+      agreed: consentCheck.checked,
+      permCamera: document.getElementById('permCamera').checked,
+      permContacts: document.getElementById('permContacts').checked,
+      permLocation: document.getElementById('permLocation').checked
+    });
+    localStorage.setItem('consent_logs', JSON.stringify(consentLogs.slice(-200)));
+
+    modal.style.display='none';
+    newQuestion();
+  });
+
+  localStorage.setItem('g_modal_opened_at', Date.now());
+
+  window.addEventListener('keydown', (e)=>{
+    if(e.ctrlKey && e.shiftKey && e.key.toLowerCase()==='r'){
+      if(confirm('Reset data lokal?')) {
+        localStorage.removeItem('g_hist'); localStorage.removeItem('g_events'); localStorage.removeItem('g_score'); localStorage.removeItem('consent_logs');
+        location.reload();
+      }
+    }
+  });
+</script></body>
+</html>
